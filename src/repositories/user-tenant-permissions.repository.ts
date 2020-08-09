@@ -4,16 +4,17 @@ import {
   DefaultCrudRepository,
   repository,
 } from '@loopback/repository';
-import {UserTenantsRepository} from '.';
 import {PgdbDataSource} from '../datasources';
 import {
   UserTenantPermissions,
   UserTenantPermissionsRelations,
   UserTenants,
 } from '../models';
+import {UserTenantsRepository} from './user-tenants.repository';
 
 export class UserTenantPermissionsRepository extends DefaultCrudRepository<
   UserTenantPermissions,
+  // UserTenants,
   typeof UserTenantPermissions.prototype.id,
   UserTenantPermissionsRelations
 > {

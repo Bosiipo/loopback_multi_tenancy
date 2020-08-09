@@ -7,22 +7,22 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
 } from '@loopback/rest';
 import {Tenants} from '../models';
-import {TenantsRepository} from '../repositories';
+import {TenantsRepository} from '../repositories/tenants.repository';
 
 export class TenantController {
   constructor(
     @repository(TenantsRepository)
-    public tenantsRepository : TenantsRepository,
+    public tenantsRepository: TenantsRepository,
   ) {}
 
   @post('/tenants', {
@@ -39,7 +39,6 @@ export class TenantController {
         'application/json': {
           schema: getModelSchemaRef(Tenants, {
             title: 'NewTenants',
-            
           }),
         },
       },
@@ -57,9 +56,7 @@ export class TenantController {
       },
     },
   })
-  async count(
-    @param.where(Tenants) where?: Where<Tenants>,
-  ): Promise<Count> {
+  async count(@param.where(Tenants) where?: Where<Tenants>): Promise<Count> {
     return this.tenantsRepository.count(where);
   }
 
@@ -120,7 +117,8 @@ export class TenantController {
   })
   async findById(
     @param.path.number('id') id: number,
-    @param.filter(Tenants, {exclude: 'where'}) filter?: FilterExcludingWhere<Tenants>
+    @param.filter(Tenants, {exclude: 'where'})
+    filter?: FilterExcludingWhere<Tenants>,
   ): Promise<Tenants> {
     return this.tenantsRepository.findById(id, filter);
   }

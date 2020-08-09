@@ -7,46 +7,130 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  HttpErrors,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
 } from '@loopback/rest';
-import {Users} from '../models';
-import {UsersRepository} from '../repositories';
+import {
+  Tenants,
+  UserDto,
+  Users,
+  UserTenantPermissions,
+  UserTenants,
+} from '../models';
+import {
+  RolesRepository,
+  TenantsRepository,
+  UsersRepository,
+  UserTenantPermissionsRepository,
+  UserTenantsRepository,
+} from '../repositories';
 
 export class UserController {
   constructor(
     @repository(UsersRepository)
-    public usersRepository : UsersRepository,
+    public usersRepository: UsersRepository,
+    @repository(TenantsRepository)
+    public tenantsRepository: TenantsRepository,
+    @repository(RolesRepository)
+    public rolesRepository: RolesRepository,
+    @repository(UserTenantsRepository)
+    public utRepository: UserTenantsRepository,
+    @repository(UserTenantPermissionsRepository)
+    public utPermsRepository: UserTenantPermissionsRepository,
   ) {}
 
   @post('/users', {
     responses: {
       '200': {
-        description: 'Users model instance',
-        content: {'application/json': {schema: getModelSchemaRef(Users)}},
+        description: 'Users DTO instance',
+        content: {'application/json': {schema: {'x-ts-type': UserDto}}},
       },
     },
   })
-  async create(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(Users, {
-            title: 'NewUsers',
-            
-          }),
-        },
+  async create(@requestBody() userObj: UserDto): Promise<UserDto> {
+    // Look for tenant in DB
+    const tenantExists = await this.tenantsRepository.findOne({
+      where: {
+        name: userObj.tenant.name,
+        type: userObj.tenant.type,
       },
-    })
-    users: Users,
-  ): Promise<Users> {
-    return this.usersRepository.create(users);
+    });
+    if (tenantExists) {
+      // Disallow addition of user into existing tenant
+      throw new HttpErrors.BadRequest(`Tenant already exists.
+      Please contact tenant admin to send you invite.`);
+    }
+    const roleExists = await this.rolesRepository.findOne({
+      where: {
+        name: userObj.role,
+      },
+    });
+    if (!roleExists) {
+      throw new HttpErrors.BadRequest(`Role name is invalid.`);
+    }
+
+    // Create tenant first
+    const tenant = await this.tenantsRepository.create(
+      new Tenants({
+        name: userObj.tenant.name,
+        type: userObj.tenant.type,
+        status: 'active',
+      }),
+    );
+
+    // Look for user in DB
+    let userExists = await this.usersRepository.findOne({
+      where: {
+        username: userObj.username,
+      },
+    });
+    if (!userExists) {
+      // Create new user if does not exist
+      const userModel = new Users({
+        firstName: userObj.firstName,
+        middleName: userObj.middleName,
+        lastName: userObj.lastName,
+        username: userObj.username,
+        email: userObj.email,
+        phone: userObj.phone,
+        defaultTenant: tenant.id!,
+      });
+      userExists = await this.usersRepository.create(userModel);
+    } else {
+      // Map the new tenant with existing user
+    }
+    userObj.id = userExists.id;
+
+    const userTenant = await this.utRepository.create(
+      new UserTenants({
+        roleId: roleExists.id,
+        userId: userExists.id,
+        tenantId: tenant.id,
+        status: 'active',
+      }),
+    );
+    userObj.tenant.id = tenant.id;
+
+    if (userObj.permissions && userObj.permissions.length > 0) {
+      const utPerms = userObj.permissions.map(
+        (perm: {permission: any; allowed: any}) => {
+          return new UserTenantPermissions({
+            permission: perm.permission,
+            allowed: perm.allowed,
+            userTenantId: userTenant.id,
+          });
+        },
+      );
+      await this.utPermsRepository.createAll(utPerms);
+    }
+    return userObj;
   }
 
   @get('/users/count', {
@@ -57,9 +141,7 @@ export class UserController {
       },
     },
   })
-  async count(
-    @param.where(Users) where?: Where<Users>,
-  ): Promise<Count> {
+  async count(@param.where(Users) where?: Where<Users>): Promise<Count> {
     return this.usersRepository.count(where);
   }
 
@@ -78,9 +160,7 @@ export class UserController {
       },
     },
   })
-  async find(
-    @param.filter(Users) filter?: Filter<Users>,
-  ): Promise<Users[]> {
+  async find(@param.filter(Users) filter?: Filter<Users>): Promise<Users[]> {
     return this.usersRepository.find(filter);
   }
 
@@ -120,7 +200,8 @@ export class UserController {
   })
   async findById(
     @param.path.number('id') id: number,
-    @param.filter(Users, {exclude: 'where'}) filter?: FilterExcludingWhere<Users>
+    @param.filter(Users, {exclude: 'where'})
+    filter?: FilterExcludingWhere<Users>,
   ): Promise<Users> {
     return this.usersRepository.findById(id, filter);
   }

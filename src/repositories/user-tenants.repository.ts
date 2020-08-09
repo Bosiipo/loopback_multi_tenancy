@@ -4,7 +4,7 @@ import {
   DefaultCrudRepository,
   repository,
 } from '@loopback/repository';
-import {RolesRepository, TenantsRepository, UsersRepository} from '.';
+// import {RolesRepository, TenantsRepository, UsersRepository} from '.';
 import {PgdbDataSource} from '../datasources';
 import {
   Roles,
@@ -13,6 +13,9 @@ import {
   UserTenants,
   UserTenantsRelations,
 } from '../models';
+import {RolesRepository} from './roles.repository';
+import {TenantsRepository} from './tenants.repository';
+import {UsersRepository} from './users.repository';
 
 export class UserTenantsRepository extends DefaultCrudRepository<
   UserTenants,

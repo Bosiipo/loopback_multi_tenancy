@@ -6,3 +6,6 @@ export * from './roles.model';
 export * from './base-entity.model';
 export * from './user-modifiable-entity.model';
 export * from './auth-clients.model';
+export * from './user-dto.model';
+export * from './tenant-dto.model';
+export * from './user-permissions-dto.model';
